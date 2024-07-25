@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-DATABASE_NAME=$1
 
-if [ -z "$DATABASE_NAME" ]; then
-  echo "Usage: $0 [database name]"
+# Check if DATABASE_NAME is set
+if [ -z "$DB_NAME" ]; then
+  echo "DB_NAME environment variable is not set."
   exit 1
 fi
 
@@ -11,22 +11,15 @@ set -e
 set -o pipefail
 
 # Create a file name for the backup based on the current date and time
-# Example: 2019-01-27_13:42:00.master.bak
-FILE_NAME=$(date +%Y-%m-%d_%H-%M-%S.$DATABASE_NAME.bak)
+FILE_NAME=$(date +%Y-%m-%d_%H:%M:%S.$DB_NAME.bak)
 
 # Make sure the backups folder exists on the host file system
-mkdir -p "./backups"
+mkdir -p "/var/opt/mssql/backups"
 
-echo "Backing up database '$DATABASE_NAME'"
+echo "Backing up database '$DB_NAME'"
 
 # Create a database backup with sqlcmd
-docker exec -it my_sql_server_container /opt/mssql-tools/bin/sqlcmd -b -V16 -S localhost -U SA -Q "BACKUP DATABASE [$DATABASE_NAME] TO DISK = N'/var/opt/mssql/backups/$FILE_NAME' with NOFORMAT, NOINIT, NAME = '$DATABASE_NAME-full', SKIP, NOREWIND, NOUNLOAD, STATS = 10"
+/opt/mssql-tools/bin/sqlcmd -b -V16 -S "$DB_SERVER" -U "$DB_USER" -P "$DB_PASSWORD" -Q "BACKUP DATABASE [$DB_NAME] TO DISK = N'/var/opt/mssql/backups/$FILE_NAME' with NOFORMAT, NOINIT, NAME = '$DB_NAME-full', SKIP, NOREWIND, NOUNLOAD, STATS = 10"
 
 echo ""
-echo "Exporting file"
-
-# Copy the created file out of the container to the host filesystem
-docker cp my_sql_server_container:/var/opt/mssql/backups/$FILE_NAME ./backups/$FILE_NAME
-
-echo "Backed up database '$DATABASE_NAME' to ./backups/$FILE_NAME"
-echo "Done!"
+echo "Backup completed successfully: /var/opt/mssql/backups/$FILE_NAME"
