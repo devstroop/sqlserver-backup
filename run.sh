@@ -1,25 +1,19 @@
-#!/usr/bin/env bash
-
-# Check if DATABASE_NAME is set
-if [ -z "$DB_NAME" ]; then
-  echo "DB_NAME environment variable is not set."
-  exit 1
-fi
-
-# Set bash to exit if any further command fails
+#!/bin/bash
 set -e
-set -o pipefail
 
-# Create a file name for the backup based on the current date and time
-FILE_NAME=$(date +%Y-%m-%d_%H:%M:%S.$DB_NAME.bak)
+# Start SQL Server
+/opt/mssql/bin/sqlservr &
 
-# Make sure the backups folder exists on the host file system
-mkdir -p "/var/opt/mssql/backups"
+# Wait for SQL Server to start
+echo "Waiting for SQL Server to start..."
+until /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "$SA_PASSWORD" -Q "SELECT 1" > /dev/null 2>&1; do
+  sleep 1
+done
 
-echo "Backing up database '$DB_NAME'"
+echo "SQL Server is up - executing backup..."
 
-# Create a database backup with sqlcmd
-/opt/mssql-tools/bin/sqlcmd -b -V16 -S "$DB_SERVER" -U "$DB_USER" -P "$DB_PASSWORD" -Q "BACKUP DATABASE [$DB_NAME] TO DISK = N'/var/opt/mssql/backups/$FILE_NAME' with NOFORMAT, NOINIT, NAME = '$DB_NAME-full', SKIP, NOREWIND, NOUNLOAD, STATS = 10"
+# Perform the backup
+/opt/mssql-tools/bin/sqlcmd -b -V16 -S localhost -U SA -P "$SA_PASSWORD" -Q "BACKUP DATABASE [$DB_NAME] TO DISK = N'/backup/$(date +%Y-%m-%d_%H:%M:%S.$DB_NAME.bak)' WITH NOFORMAT, NOINIT, NAME = '$DB_NAME-full', SKIP, NOREWIND, NOUNLOAD, STATS = 10"
 
-echo ""
-echo "Backup completed successfully: /var/opt/mssql/backups/$FILE_NAME"
+# Keep the container running
+wait
