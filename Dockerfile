@@ -1,22 +1,19 @@
-# Use the official Microsoft SQL Server image as the base
-FROM mcr.microsoft.com/mssql/server:2019-latest
+# Use a base image with SQL Server tools
+FROM mcr.microsoft.com/mssql-tools
 
-# Install necessary packages
+# Install bash (if not already installed) and necessary tools
 RUN apt-get update && \
-    apt-get install -y \
-    curl \
-    nano \
-    bash \
-    && rm -rf /var/lib/apt/lists/*
+    apt-get install -y bash && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy the script into the container
+# Create a directory for backups
+RUN mkdir -p /var/opt/mssql/backups
+
+# Copy the run script into the container
 COPY run.sh /usr/local/bin/run.sh
 
 # Make the script executable
 RUN chmod +x /usr/local/bin/run.sh
 
-# Set the default command to run the script
+# Set the entrypoint to the run script
 ENTRYPOINT ["/usr/local/bin/run.sh"]
-
-# Set the default working directory
-WORKDIR /var/opt/mssql/backups
